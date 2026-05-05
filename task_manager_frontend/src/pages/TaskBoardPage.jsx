@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '../hooks/useTasks'
-import { useProject } from '../hooks/useProjects'
+import { useProject, useAddMember } from '../hooks/useProjects'
 import { useAuth } from '../context/AuthContext'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -104,6 +104,48 @@ function KanbanColumn({ column, tasks, isAdmin, onStatusChange, onDelete, projec
   )
 }
 
+// Invite Member Modal
+function AddMemberModal({ open, onClose, projectId }) {
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState('MEMBER')
+  const [error, setError] = useState('')
+  const { mutate, isPending } = useAddMember(projectId)
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!email.trim()) return
+    mutate({ email, role }, {
+      onSuccess: () => { setEmail(''); setRole('MEMBER'); onClose() },
+      onError: (err) => {
+        const errs = err.response?.data?.errors
+        setError(errs ? Object.values(errs).flat()[0] : (err.response?.data?.message || 'Failed to add member'))
+      }
+    })
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Invite Member">
+      {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input id="member-email" label="User Email" type="email" value={email}
+          onChange={e => { setEmail(e.target.value); setError('') }}
+          placeholder="colleague@example.com" />
+        <div>
+          <label htmlFor="member-role" className="label">Role</label>
+          <select id="member-role" className="input" value={role} onChange={e => setRole(e.target.value)}>
+            <option value="MEMBER">Member (Read/Edit assigned tasks)</option>
+            <option value="ADMIN">Admin (Full access)</option>
+          </select>
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Button variant="secondary" type="button" onClick={onClose} className="flex-1 justify-center">Cancel</Button>
+          <Button type="submit" loading={isPending} className="flex-1 justify-center">Invite</Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 // Create task modal
 function CreateTaskModal({ open, onClose, projectId, members = [] }) {
   const [form, setForm] = useState({ title: '', description: '', priority: 'MEDIUM', due_date: '', assigned_to_id: '' })
@@ -171,6 +213,7 @@ export default function TaskBoardPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [showCreate, setShowCreate] = useState(false)
+  const [showAddMember, setShowAddMember] = useState(false)
 
   const { data: tasks = [],   isLoading: tasksLoading } = useTasks(projectId)
   const { data: project,      isLoading: projLoading  } = useProject(projectId)
@@ -214,12 +257,20 @@ export default function TaskBoardPage() {
           </div>
         </div>
         {isAdmin && (
-          <Button onClick={() => setShowCreate(true)} id="create-task-btn">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Task
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setShowAddMember(true)}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              Invite
+            </Button>
+            <Button onClick={() => setShowCreate(true)} id="create-task-btn">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Task
+            </Button>
+          </div>
         )}
       </div>
 
@@ -235,6 +286,8 @@ export default function TaskBoardPage() {
 
       <CreateTaskModal open={showCreate} onClose={() => setShowCreate(false)}
         projectId={projectId} members={members} />
+      <AddMemberModal open={showAddMember} onClose={() => setShowAddMember(false)}
+        projectId={projectId} />
     </div>
   )
 }
