@@ -21,13 +21,7 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        cache_key = f"dashboard_{request.user.id}"
-        data      = cache.get(cache_key)
-
-        if data is None:
-            data = self._compute_stats(request.user)
-            cache.set(cache_key, data, timeout=60)   # 60-second TTL per user
-
+        data = self._compute_stats(request.user)
         return Response({
             "status":  "success",
             "message": "Dashboard stats retrieved.",
@@ -60,15 +54,15 @@ class DashboardView(APIView):
 
         # --- Per-project breakdown (one query with GROUP BY) ---
         by_project = (
-            Task.objects
-            .filter(project__memberships__user=user)
-            .values('project_id', 'project__name')          # GROUP BY these fields
+            Project.objects
+            .filter(memberships__user=user)
             .annotate(
-                total=Count('id'),
-                completed=Count('id', filter=Q(status='DONE')),
-                overdue=Count('id', filter=Q(due_date__lt=today) & ~Q(status='DONE')),
+                total=Count('tasks'),
+                completed=Count('tasks', filter=Q(tasks__status='DONE')),
+                overdue=Count('tasks', filter=Q(tasks__due_date__lt=today) & ~Q(tasks__status='DONE')),
             )
-            .order_by('project__name')
+            .values('id', 'name', 'total', 'completed', 'overdue')
+            .order_by('name')
         )
 
         return {
@@ -87,8 +81,8 @@ class DashboardView(APIView):
             },
             "by_project": [
                 {
-                    "project_id":   row['project_id'],
-                    "project_name": row['project__name'],
+                    "project_id":   row['id'],
+                    "project_name": row['name'],
                     "total":        row['total'],
                     "completed":    row['completed'],
                     "overdue":      row['overdue'],
