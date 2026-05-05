@@ -101,10 +101,14 @@ SIMPLE_JWT = {
 }
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173,http://localhost:5174'
-).split(',')
+_cors_origins = config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173,http://localhost:5174')
+
+if _cors_origins == '*':
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOWED_ORIGINS = []
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = _cors_origins.split(',')
 
 # ── Cache (Django DB cache — no extra infra for Phase 1) ─────────────────────
 CACHES = {
