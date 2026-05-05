@@ -1,4 +1,4 @@
-import api from './api'
+import api from './axiosClient'
 
 export const getNotifications = async () => {
   const { data } = await api.get('/notifications/')
