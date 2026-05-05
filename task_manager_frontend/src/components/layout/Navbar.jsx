@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { logout as logoutApi } from '../../api/authApi'
+import NotificationBell from '../ui/NotificationBell'
 
 const NAV_LINKS = [
   { to: '/dashboard', label: 'Dashboard', icon: (
@@ -76,6 +77,7 @@ export default function Navbar() {
             <p className="text-sm font-medium text-white truncate">{user?.full_name}</p>
             <p className="text-xs text-slate-500 truncate">{user?.email}</p>
           </div>
+          <NotificationBell />
         </div>
         <button
           onClick={handleLogout}

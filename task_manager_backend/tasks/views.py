@@ -12,6 +12,7 @@ from .serializers import (
 )
 from core.permissions import IsProjectMember, IsProjectAdmin, IsProjectAdminOrReadOnly
 from projects.models import ProjectMember
+from notifications.models import Notification
 
 
 # ── Task views ────────────────────────────────────────────────────────────────
@@ -64,6 +65,12 @@ class TaskListCreateView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         task = serializer.save(project_id=project_id, created_by=request.user)
+
+        if task.assigned_to and task.assigned_to != request.user:
+            Notification.objects.create(
+                user=task.assigned_to,
+                message=f"{request.user.full_name} assigned you to a new task: {task.title}"
+            )
 
         return Response({
             "status":  "success",
@@ -142,8 +149,16 @@ class TaskUpdateView(APIView):
                 }, status=status.HTTP_403_FORBIDDEN)
             serializer = TaskStatusUpdateSerializer(task, data=request.data, partial=True)
 
+        old_assigned_to = task.assigned_to
+
         serializer.is_valid(raise_exception=True)
         task = serializer.save()
+
+        if is_admin and task.assigned_to and task.assigned_to != old_assigned_to and task.assigned_to != request.user:
+            Notification.objects.create(
+                user=task.assigned_to,
+                message=f"{request.user.full_name} assigned you to a task: {task.title}"
+            )
 
         return Response({
             "status":  "success",
